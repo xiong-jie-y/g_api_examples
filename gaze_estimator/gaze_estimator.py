@@ -239,11 +239,11 @@ if __name__ == '__main__':
     # ------------------------Demo's graph------------------------
     g_in = cv.GMat()
 
-    # raw_inputs = cv.GInferInputs()
-    # resized_raw_g_in = cv.gapi.resize(g_in, (640, 360))
-    # raw_inputs.setInput('input_low', resized_raw_g_in)
-    # enhanced_outputs = cv.gapi.infer('light-enhancement', raw_inputs)
-    # enhanced_g_in = cv.gapi.resize(enhanced_outputs.at('FG/conv2d_16/Relu'), (800, 1200))
+    raw_inputs = cv.GInferInputs()
+    resized_raw_g_in = cv.gapi.resize(g_in, (640, 360))
+    raw_inputs.setInput('input_low', resized_raw_g_in)
+    enhanced_outputs = cv.gapi.infer('light-enhancement', raw_inputs)
+    enhanced_g_in = cv.gapi.resize(enhanced_outputs.at('FG/conv2d_16/Relu'), (800, 1200))
 
     # Detect faces
     face_inputs = cv.GInferInputs()
