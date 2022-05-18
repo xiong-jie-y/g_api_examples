@@ -64,6 +64,8 @@ def build_argparser():
     parser.add_argument('--eyed',
                         default='CPU',
                         help='Target device for the eyes state inference (e.g. CPU, GPU, VPU, ...)')
+    parser.add_argument('--enhance-low-light',
+                        default=False, action="store_true")
     return parser
 
 
@@ -232,6 +234,40 @@ class GGetStatesImpl:
         out_r_st = [int(st) for eye_r in eyesr for st in (eye_r[:, 0] < eye_r[:, 1]).ravel()]
         return out_l_st, out_r_st
 
+@cv.gapi.op('custom.Preprocess',
+            in_types=[cv.GMat],
+            out_types=[cv.GMat])
+class Preprocess:
+    @staticmethod
+    def outMeta(input):
+        return input.withDepth(cv.CV_32F)
+
+@cv.gapi.kernel(Preprocess)
+class PreprocessImpl:
+    @staticmethod
+    def run(inference_result):
+        output_image = inference_result.astype('float32') / 255.0
+        return output_image
+
+
+@cv.gapi.op('custom.GExtractImage',
+            in_types=[cv.GMat, cv.GMat],
+            out_types=[cv.GMat])
+class GExtractImage:
+    @staticmethod
+    def outMeta(input_image_desc, inference_result):
+        return input_image_desc
+
+@cv.gapi.kernel(GExtractImage)
+class GExtractImageImpl:
+    @staticmethod
+    def run(original_image_size, inference_result):
+        output_image = (inference_result * 255.0).astype(np.uint8)
+        output_image = output_image.squeeze()
+        output_image = np.transpose(output_image, (1, 2, 0))
+        output_image = cv.resize(output_image, (original_image_size.shape[1], original_image_size.shape[0]))
+        return output_image
+
 
 if __name__ == '__main__':
     ARGUMENTS = build_argparser().parse_args()
@@ -239,11 +275,13 @@ if __name__ == '__main__':
     # ------------------------Demo's graph------------------------
     g_in = cv.GMat()
 
-    raw_inputs = cv.GInferInputs()
-    resized_raw_g_in = cv.gapi.resize(g_in, (640, 360))
-    raw_inputs.setInput('input_low', resized_raw_g_in)
-    enhanced_outputs = cv.gapi.infer('light-enhancement', raw_inputs)
-    enhanced_g_in = cv.gapi.resize(enhanced_outputs.at('FG/conv2d_16/Relu'), (800, 1200))
+    if ARGUMENTS.enhance_low_light:    
+        raw_inputs = cv.GInferInputs()
+        raw_inputs.setInput('input_low', Preprocess.on(g_in))
+        enhanced_outputs = cv.gapi.infer('light-enhancement', raw_inputs)
+        enhanced_g_in = GExtractImage.on(g_in, enhanced_outputs.at('FG/conv2d_16/Relu'))
+    else:
+        enhanced_g_in = cv.gapi.copy(g_in)
 
     # Detect faces
     face_inputs = cv.GInferInputs()
@@ -295,11 +333,11 @@ if __name__ == '__main__':
     gaze_outputs = cv.gapi.infer2('gaze-estimation', enhanced_g_in, gaze_inputs)
     gaze_vectors = gaze_outputs.at('gaze_vector')
 
-    out = cv.gapi.copy(enhanced_g_in)
+    out = cv.gapi.copy(g_in)
     # ------------------------End of graph------------------------
 
     comp = cv.GComputation(cv.GIn(g_in), cv.GOut(out,
-                                                    enhanced_g_in,
+                                                 enhanced_g_in,
                                                  faces_rc,
                                                  left_eyes,
                                                  right_eyes,
@@ -322,15 +360,15 @@ if __name__ == '__main__':
     gaze_net = cv.gapi.ie.params('gaze-estimation', ARGUMENTS.gazem,
                                  weight_path(ARGUMENTS.gazem), ARGUMENTS.gazed)
     light_enhancement_net = cv.gapi.ie.params(
-        'light-enhancement', "saved_model_360x640/openvino/FP32/gladnet.xml",
-        weight_path("saved_model_360x640/openvino/FP32/gladnet.xml"), 'CPU')
+        'light-enhancement', "saved_model_240x320/openvino/FP32/gladnet.xml",
+        weight_path("saved_model_240x320/openvino/FP32/gladnet.xml"), 'CPU')
     # eye_net = cv.gapi.ie.params('open-closed-eye', ARGUMENTS.eyem,
     #                             weight_path(ARGUMENTS.eyem), ARGUMENTS.eyed)
 
     nets = cv.gapi.networks(face_net, head_pose_net, landmarks_net, gaze_net, light_enhancement_net)
 
     # Kernels pack
-    kernels = cv.gapi.kernels(GParseEyesImpl, GProcessPosesImpl, GGetStatesImpl)
+    kernels = cv.gapi.kernels(GParseEyesImpl, GProcessPosesImpl, GGetStatesImpl, GExtractImageImpl, PreprocessImpl)
 
     # ------------------------Execution part------------------------
     ccomp = comp.compileStreaming(args=cv.gapi.compile_args(kernels, nets))
@@ -355,6 +393,7 @@ if __name__ == '__main__':
     while True:
         start_time_cycle = time.time()
         has_frame, (oimg,
+                    enhanced_img,
                     outr,
                     l_eyes,
                     r_eyes,
@@ -438,12 +477,6 @@ if __name__ == '__main__':
                        [int(rx), int(ry + rheight + 5 * rwidth / 100)],
                        cv.FONT_HERSHEY_PLAIN, scale_box * 2, WHITE, 1)
 
-            # Eyes boxes
-            # color_l = GREEN if out_st_l[i] else RED
-            # cv.rectangle(oimg, l_eyes[i], color_l, 1)
-            # color_r = GREEN if out_st_r[i] else RED
-            # cv.rectangle(oimg, r_eyes[i], color_r, 1)
-
             # Gaze vectors
             norm_gazes = np.linalg.norm(outg[i][0])
             gaze_vector = outg[i][0] / norm_gazes
@@ -452,10 +485,6 @@ if __name__ == '__main__':
             gaze_arrow = [arrow_length * gaze_vector[0], -arrow_length * gaze_vector[1]]
             left_arrow = [int(a+b) for a, b in zip(out_mids[0 + i * 2], gaze_arrow)]
             right_arrow = [int(a+b) for a, b in zip(out_mids[1 + i * 2], gaze_arrow)]
-            # if out_st_l[i]:
-            #     cv.arrowedLine(oimg, out_mids[0 + i * 2], left_arrow, BLUE, 2)
-            # if out_st_r[i]:
-            #     cv.arrowedLine(oimg, out_mids[1 + i * 2], right_arrow, BLUE, 2)
 
             v0, v1, v2 = outg[i][0]
 
