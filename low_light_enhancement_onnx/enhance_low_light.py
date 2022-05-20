@@ -78,8 +78,7 @@ def main(input):
 
     # Define models and kernels that is used as a implementation.
     light_enhancement_net = cv.gapi.onnx.params(
-        'light-enhancement', "saved_model_360x640/model_float32.onnx",
-        ["CUDAExecutionProvider"])
+        'light-enhancement', "saved_model_360x640/model_float32.onnx")
     ccomp = comp.compileStreaming(args=cv.gapi.compile_args(
         cv.gapi.kernels(ConvertNCHWToOpenCVImpl, NormalizeImpl, DenormalizeImpl), cv.gapi.networks(light_enhancement_net)))
 
