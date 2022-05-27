@@ -1,7 +1,7 @@
 ## Installation
 Requires installation of very latest opencv and onnxruntime.
 
-```
+```sh
 # Install very latest opencv
 pip install https://github.com/xiong-jie-y/g_api_examples/releases/download/0.1.0/opencv_contrib_python-4.6.0+5de8d66-cp38-cp38-linux_x86_64.whl
 
