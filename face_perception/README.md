@@ -22,10 +22,10 @@ This image is from https://www.pexels.com/ja-jp/photo/11309593/.
 
 <img src="images/face_detector_full.gif" width="320px" height="240px">
 
-## How to get models
+## How to get onnx models for this program
 Please download all the models [from](https://github.com/xiong-jie-y/g_api_examples/releases/tag/0.1.1) here and place under models directory.
 
-### Original Models
+## Original Models
 Just get models from these URLS.
 * [emotion-ferplus-8](https://github.com/onnx/models/tree/main/vision/body_analysis/emotion_ferplus)
 * [open-closed-eye](https://docs.openvino.ai/latest/omz_models_model_open_closed_eye_0001.html)
