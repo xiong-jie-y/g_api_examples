@@ -8,13 +8,19 @@ This script can perceive face with the following information.
 * Eye close-open status
 * Gaze direction
 
+To run the demo please run this command.
+
+```
+python3 perceive_face.py  --input pexels-agung-pandit-wiguna-11309593_quad.jpg --detector ultraface --head-pose-estimator sixdrepnet --landmark-estimator facial_landmarks_35_adas_0002
+```
+
 The image below is the example of the face perception result of this script.
 
-![](images/perception_example.png)
+<img src="images/perception_example.png" width="320px" height="240px">
 
 This image is from https://www.pexels.com/ja-jp/photo/11309593/.
 
-![](images/face_detector_full.gif)
+<img src="images/face_detector_full.gif" width="320px" height="240px">
 
 ## How to get models
 Please download all the models [from](https://github.com/xiong-jie-y/g_api_examples/releases/tag/0.1.1) here and place under models directory.
