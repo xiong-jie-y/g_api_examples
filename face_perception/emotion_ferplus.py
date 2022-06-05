@@ -18,7 +18,7 @@ def visualize_emotion_label(oimg, out_rect, emotion_id):
 
 @cv.gapi.op('custom.emotion_ferplus.Postprocess',
             in_types=[cv.GArray.GMat],
-            out_types=[cv.GOpaque.Int])
+            out_types=[cv.GArray.Int])
 class Postprocess:
     @staticmethod
     def outMeta(scores):
@@ -34,12 +34,14 @@ class PostprocessImpl:
     @staticmethod
     def run(scores):
         if len(scores) == 0:
-            return 0
+            return [0]
 
         prob = softmax(scores)
         prob = np.squeeze(prob)
         classes = np.argsort(prob)[::-1]
-        return classes[0]   
+        if len(classes.shape) == 1:
+            return [classes[0]]
+        return [classes_elm[0] for classes_elm in classes]
 
 def process(g_in, bbox):
     head_inputs = cv.GInferInputs()

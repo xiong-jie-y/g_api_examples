@@ -48,7 +48,8 @@ def main(input, detector, head_pose_estimator, landmark_estimator):
         bboxes = ultraface.process(g_in)
     elif detector == "yunet":
         bboxes = yunet.process(g_in)
-    else:
+    elif detector == "yolo_v5_face":
+
         raise RuntimeError("No Such Detector")
 
     # Detect poses
@@ -162,7 +163,7 @@ def main(input, detector, head_pose_estimator, landmark_estimator):
                 head_pose_estimation_adas_0001.draw_axis(oimg, yaw, pitch, roll, x_center, y_center, rwidth)
 
             gaze_estimation_adas_0002.visualize_angle_text(oimg, out_rect, outg[i])
-            emotion_ferplus.visualize_emotion_label(oimg, out_rect, emotion_id)
+            emotion_ferplus.visualize_emotion_label(oimg, out_rect, emotion_id[i])
 
             # Eyes boxes
             open_closed_eye_0001.visualize_eye_status(oimg, l_eyes[i], out_st_l[i])

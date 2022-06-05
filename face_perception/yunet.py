@@ -1,5 +1,6 @@
 import cv2 as cv
 import numpy as np
+from itertools import product
 
 MIN_SIZES = [[10, 16, 24], [32, 48], [64, 96], [128, 192, 256]]
 STEPS = [8, 16, 32, 64]
